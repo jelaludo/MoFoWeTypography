@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MoFoWe Reading</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=Shippori+Mincho:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===== Typography Tokens ===== */
+    :root {
+      --size-xs: 0.75rem;
+      --size-sm: 0.875rem;
+      --size-base: 1rem;
+      --size-md: 1.25rem;
+      --size-lg: 1.5625rem;
+      --size-xl: 1.953rem;
+      --size-2xl: 2.441rem;
+
+      --lh-body: 1.5;
+      --lh-body-mobile: 1.6;
+      --lh-body-ja: 1.7;
+      --lh-heading: 1.1;
+      --lh-heading-ja: 1.25;
+
+      --paragraph-gap: 1.1em;
+
+      --color-text: #1a1a1a;
+      --color-text-secondary: #595959;
+      --color-bg: #f5f5f5;
+      --color-surface: #ffffff;
+
+      --column-latin: min(90vw, 65ch);
+      --column-ja: min(90vw, 38em);
+
+      --font-latin: 'Literata', Georgia, serif;
+      --font-ja: 'Shippori Mincho', 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+
+      /* Font size multiplier — toggled by JS */
+      --fs-scale: 1;
+
+      color-scheme: light dark;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --color-text: #e8e8e8;
+        --color-text-secondary: #a0a0a0;
+        --color-bg: #121212;
+        --color-surface: #1e1e1e;
+      }
+    }
+
+    /* ===== Reset ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font-latin);
+      font-size: calc(clamp(16px, 1.1vw + 14px, 18px) * var(--fs-scale));
+      line-height: var(--lh-body);
+      color: var(--color-text);
+      background-color: var(--color-bg);
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    @media (max-width: 768px) {
+      body { line-height: var(--lh-body-mobile); }
+    }
+
+    /* ===== Landing Page ===== */
+    .landing {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: max(2rem, 5vh) max(1.5rem, 5vw);
+    }
+
+    .landing-title {
+      font-size: var(--size-sm);
+      font-weight: 400;
+      color: var(--color-text-secondary);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-block-end: max(3rem, 5vh);
+    }
+
+    .story-list {
+      list-style: none;
+      width: min(90vw, 32rem);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .story-card {
+      border-block-start: 1px solid var(--color-text-secondary);
+      padding: 1.25rem 0;
+      cursor: pointer;
+    }
+
+    .story-card:last-child {
+      border-block-end: 1px solid var(--color-text-secondary);
+    }
+
+    .story-card-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .story-card-title {
+      font-size: var(--size-md);
+      font-weight: 600;
+      line-height: var(--lh-heading);
+    }
+
+    .story-card[data-lang="ja"] .story-card-title {
+      font-family: var(--font-ja);
+      line-height: var(--lh-heading-ja);
+    }
+
+    .story-card-toggle {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: none;
+      border: 1px solid var(--color-text-secondary);
+      color: var(--color-text);
+      font-family: var(--font-latin);
+      font-size: var(--size-base);
+      line-height: 1;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .story-card-toggle[aria-expanded="true"] {
+      transform: rotate(45deg);
+    }
+
+    .story-card-excerpt {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, margin 0.3s ease;
+      color: var(--color-text-secondary);
+      font-size: var(--size-sm);
+      line-height: var(--lh-body);
+    }
+
+    .story-card-excerpt.open {
+      max-height: 4rem;
+      margin-block-start: 0.75rem;
+    }
+
+    .story-card[data-lang="ja"] .story-card-excerpt {
+      font-family: var(--font-ja);
+    }
+
+    /* ===== Reader View ===== */
+    .reader {
+      display: none;
+      min-height: 100dvh;
+      flex-direction: column;
+    }
+
+    .reader.active {
+      display: flex;
+    }
+
+    .reader-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem max(1.5rem, 5vw);
+      background-color: var(--color-bg);
+    }
+
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      background: none;
+      border: none;
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    .back-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .reader-meta {
+      font-size: var(--size-sm);
+      color: var(--color-text-secondary);
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Reader controls cluster */
+    .reader-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-shrink: 0;
+    }
+
+    /* Font size control: aaA */
+    .font-size-control {
+      display: flex;
+      align-items: baseline;
+      gap: 0;
+      border: 1px solid var(--color-text-secondary);
+    }
+
+    .font-size-btn {
+      background: none;
+      border: none;
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 0.35rem 0.5rem;
+      font-family: var(--font-latin);
+      line-height: 1;
+      min-width: 36px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .font-size-btn + .font-size-btn {
+      border-inline-start: 1px solid var(--color-text-secondary);
+    }
+
+    .font-size-btn.active {
+      background-color: var(--color-text);
+      color: var(--color-bg);
+    }
+
+    .font-size-btn:nth-child(1) { font-size: 0.7rem; }
+    .font-size-btn:nth-child(2) { font-size: 0.85rem; }
+    .font-size-btn:nth-child(3) { font-size: 1.05rem; }
+
+    /* Writing mode toggle */
+    .writing-mode-toggle {
+      display: none;
+      background: none;
+      border: 1px solid var(--color-text-secondary);
+      color: var(--color-text);
+      cursor: pointer;
+      padding: 0.35rem 0.65rem;
+      font-family: var(--font-ja);
+      font-size: var(--size-sm);
+      line-height: 1;
+      min-width: 36px;
+      min-height: 36px;
+      white-space: nowrap;
+    }
+
+    .writing-mode-toggle.visible {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* ===== Story Content — Horizontal ===== */
+    .story-scroll {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 2vh max(1.5rem, 5vw) 8vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .story-content {
+      width: 100%;
+      max-width: var(--column-latin);
+    }
+
+    .story-content[data-lang="ja"]:not(.vertical) {
+      max-width: var(--column-ja);
+      font-family: var(--font-ja);
+      line-height: var(--lh-body-ja);
+      letter-spacing: 0.05em;
+      text-align: justify;
+      text-align-last: left;
+      line-break: strict;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+
+    .story-content[data-lang="fr"] {
+      max-width: var(--column-latin);
+    }
+
+    .story-title {
+      font-size: var(--size-2xl);
+      font-weight: 600;
+      line-height: var(--lh-heading);
+      margin-block-end: 0.5em;
+    }
+
+    .story-content[data-lang="ja"] .story-title {
+      font-family: var(--font-ja);
+      line-height: var(--lh-heading-ja);
+      letter-spacing: 0;
+      word-break: auto-phrase;
+    }
+
+    .story-author {
+      font-size: var(--size-sm);
+      color: var(--color-text-secondary);
+      margin-block-end: 2em;
+    }
+
+    .story-body p + p {
+      margin-block-start: var(--paragraph-gap);
+    }
+
+    /* Japanese: no italic, use text-emphasis */
+    .story-content[data-lang="ja"] em,
+    .story-content[data-lang="ja"] i {
+      font-style: normal;
+      text-emphasis: filled circle;
+      text-emphasis-position: over right;
+    }
+
+    /* ===== Story Content — Vertical (Japanese) ===== */
+    .story-scroll.vertical {
+      overflow-y: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: max(1rem, 2vh) max(1.5rem, 5vw);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      min-height: calc(100dvh - 4rem);
+    }
+
+    .story-content.vertical {
+      writing-mode: vertical-rl;
+      max-width: none;
+      width: max-content;
+      /* 20 chars/column (genkōyōshi) ≈ 21em with 0.05em letter-spacing.
+         Cap at that or viewport height, whichever is smaller. */
+      height: min(calc(100dvh - 7rem), 22em);
+      font-family: var(--font-ja);
+      line-height: var(--lh-body-ja);
+      letter-spacing: 0.05em;
+      text-align: start;
+      line-break: strict;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+
+    .story-content.vertical .story-title {
+      font-family: var(--font-ja);
+      line-height: var(--lh-heading-ja);
+      letter-spacing: 0;
+      word-break: auto-phrase;
+      font-size: var(--size-xl);
+    }
+
+    .story-content.vertical .story-author {
+      margin-block-end: 3em;
+    }
+
+    /* Scroll hint for vertical mode */
+    .scroll-hint {
+      display: none;
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: var(--size-xs);
+      color: var(--color-text-secondary);
+      background: var(--color-bg);
+      padding: 0.4rem 0.8rem;
+      opacity: 0.8;
+      pointer-events: none;
+      z-index: 5;
+      white-space: nowrap;
+    }
+
+    .scroll-hint.visible {
+      display: block;
+      animation: fadeout 3s ease 2s forwards;
+    }
+
+    @keyframes fadeout {
+      to { opacity: 0; }
+    }
+
+    /* ===== Mobile ===== */
+    @media (pointer: coarse) {
+      .back-btn { opacity: 0; pointer-events: none; position: absolute; }
+      .reader-meta { margin-inline-start: 0; }
+    }
+
+    @media (pointer: fine) {
+      .back-btn { opacity: 1; pointer-events: auto; }
+    }
+
+    @media (max-width: 480px) {
+      .reader-header { gap: 0.4rem; padding: 0.5rem max(1rem, 3vw); }
+      .font-size-btn { min-width: 32px; min-height: 32px; padding: 0.25rem 0.35rem; }
+      .writing-mode-toggle { min-width: 32px; min-height: 32px; padding: 0.25rem 0.5rem; }
+    }
+
+    @media print {
+      .landing, .reader-header, .scroll-hint { display: none; }
+      .reader { display: flex; }
+      .story-scroll { overflow: visible; padding: 0; }
+    }
+</style>
+</head>
+<body>
+  <main class="landing" id="landing">
+    <p class="landing-title">MoFoWe Reading</p>
+    <ul class="story-list" id="story-list"></ul>
+  </main>
+
+  <div class="reader" id="reader">
+    <header class="reader-header">
+      <button class="back-btn" id="back-btn" aria-label="Back to stories">
+        <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      </button>
+      <span class="reader-meta" id="reader-meta"></span>
+      <div class="reader-controls">
+        <div class="font-size-control">
+          <button class="font-size-btn" aria-label="Small text">a</button>
+          <button class="font-size-btn" aria-label="Medium text">a</button>
+          <button class="font-size-btn" aria-label="Large text">A</button>
+        </div>
+        <button class="writing-mode-toggle" id="writing-mode-toggle" aria-label="Toggle writing direction">縦</button>
+      </div>
+    </header>
+    <div class="story-scroll" id="story-scroll">
+      <article class="story-content" id="story-content">
+        <h1 class="story-title" id="story-title"></h1>
+        <p class="story-author" id="story-author"></p>
+        <div class="story-body" id="story-body"></div>
+      </article>
+    </div>
+    <div class="scroll-hint" id="scroll-hint">← scroll to read →</div>
+  </div>
+
+  <script>
+(function(){
+  "use strict";
+  var stories=[], currentStory=null, currentWritingMode=null;
+  function $(id){return document.getElementById(id)}
+
+  // ===== Font size =====
+  var FS_SIZES = [1, 1.12, 1.25];
+  var FS_LABELS = ["a", "a", "A"];
+  var fsIndex = parseInt(localStorage.getItem("mfw-fs") || "0", 10);
+  if (fsIndex < 0 || fsIndex > 2) fsIndex = 0;
+
+  function applyFontSize(i){
+    fsIndex = i;
+    document.documentElement.style.setProperty("--fs-scale", FS_SIZES[i]);
+    localStorage.setItem("mfw-fs", String(i));
+    var btns = document.querySelectorAll(".font-size-btn");
+    btns.forEach(function(b, j){ b.classList.toggle("active", j === i); });
+  }
+
+  // ===== Writing mode =====
+  function getStoredWritingMode(storyId){
+    try { return localStorage.getItem("mfw-wm-" + storyId); } catch(e){ return null; }
+  }
+  function storeWritingMode(storyId, mode){
+    try { localStorage.setItem("mfw-wm-" + storyId, mode); } catch(e){}
+  }
+
+  function applyWritingMode(mode){
+    currentWritingMode = mode;
+    var scroll = $("story-scroll");
+    var content = $("story-content");
+    var toggle = $("writing-mode-toggle");
+    if (mode === "vertical") {
+      scroll.classList.add("vertical");
+      content.classList.add("vertical");
+      toggle.textContent = "\u6A2A"; // 横 = switch to horizontal
+      toggle.setAttribute("aria-label", "Switch to horizontal writing");
+      // Show scroll hint
+      var hint = $("scroll-hint");
+      hint.classList.add("visible");
+      // Scroll to start (rightmost in vertical-rl)
+      requestAnimationFrame(function(){
+        scroll.scrollLeft = scroll.scrollWidth;
+      });
+    } else {
+      scroll.classList.remove("vertical");
+      content.classList.remove("vertical");
+      toggle.textContent = "\u7E26"; // 縦 = switch to vertical
+      toggle.setAttribute("aria-label", "Switch to vertical writing");
+      $("scroll-hint").classList.remove("visible");
+      scroll.scrollTop = 0;
+    }
+  }
+
+  // ===== Markdown to HTML =====
+  function mdToHtml(text, skipLines){
+    var lines = text.split("\n");
+    var content = lines.slice(skipLines || 0).join("\n").trim();
+    var blocks = content.split(/\n{2,}/);
+    return blocks.filter(function(b){
+      var t = b.trim();
+      return t &&
+        t.indexOf("# ") !== 0 &&
+        t.indexOf("---") !== 0 &&
+        t.indexOf("**\u30b8\u30e3\u30c3\u30af") !== 0 &&
+        t.indexOf("\u7ffb\u8a33") !== 0 &&
+        t.indexOf("*\u539f\u6587") !== 0 &&
+        t.indexOf("*\u7ffb\u8a33") !== 0;
+    }).map(function(b){
+      var t = b.trim()
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+        .replace(/\*(.+?)\*/g, "<em>$1</em>")
+        .replace(/\n/g, "<br>");
+      return "<p>" + t + "</p>";
+    }).join("\n");
+  }
+
+  // ===== Landing =====
+  function buildLanding(data){
+    var list = $("story-list");
+    list.innerHTML = "";
+    data.forEach(function(story, i){
+      var li = document.createElement("li");
+      li.className = "story-card";
+      li.dataset.lang = story.lang;
+      li.innerHTML =
+        '<div class="story-card-header">' +
+          '<span class="story-card-title">' + story.title + '</span>' +
+          '<button class="story-card-toggle" aria-expanded="false" aria-label="Show excerpt">+</button>' +
+        '</div>' +
+        '<div class="story-card-excerpt">' + story.excerpt + '</div>';
+      var toggle = li.querySelector(".story-card-toggle");
+      var excerpt = li.querySelector(".story-card-excerpt");
+      toggle.addEventListener("click", function(e){
+        e.stopPropagation();
+        var expanded = toggle.getAttribute("aria-expanded") === "true";
+        toggle.setAttribute("aria-expanded", String(!expanded));
+        excerpt.classList.toggle("open");
+      });
+      li.addEventListener("click", function(e){
+        if(e.target.closest(".story-card-toggle")) return;
+        openStory(i);
+      });
+      list.appendChild(li);
+    });
+  }
+
+  // ===== Open Story =====
+  function openStory(index){
+    var story = stories[index];
+    if(!story) return;
+    currentStory = story;
+    history.pushState({story: index}, "", "#" + story.id);
+
+    $("reader-meta").textContent = story.author + ", " + story.year;
+    $("story-title").textContent = story.title;
+    $("story-author").textContent = story.author + " (" + story.year + ")";
+
+    var content = $("story-content");
+    content.setAttribute("data-lang", story.lang);
+    content.setAttribute("lang", story.lang);
+
+    // Show/hide writing mode toggle for Japanese
+    var wmToggle = $("writing-mode-toggle");
+    if (story.lang === "ja") {
+      wmToggle.classList.add("visible");
+    } else {
+      wmToggle.classList.remove("visible");
+    }
+
+    // Determine writing mode: stored preference > manifest default
+    var storedWm = getStoredWritingMode(story.id);
+    var wm = storedWm || story.writingMode || "horizontal";
+
+    // Load content, then apply writing mode
+    $("story-body").innerHTML = '<p style="color:var(--color-text-secondary)">Loading\u2026</p>';
+    fetch(story.file).then(function(resp){
+      if(!resp.ok) throw new Error(resp.status);
+      return resp.text();
+    }).then(function(text){
+      $("story-body").innerHTML = mdToHtml(text, story.skipLines);
+      applyWritingMode(wm);
+    }).catch(function(){
+      $("story-body").innerHTML =
+        '<p style="color:var(--color-text-secondary)">' +
+        'Could not load story. Serve this directory over HTTP.<br>' +
+        '<code style="font-size:var(--size-sm)">python -m http.server 8000</code></p>';
+    });
+
+    $("landing").style.display = "none";
+    $("reader").classList.add("active");
+  }
+
+  // ===== Close Story =====
+  function closeStory(){
+    currentStory = null;
+    currentWritingMode = null;
+    $("reader").classList.remove("active");
+    $("landing").style.display = "";
+    $("scroll-hint").classList.remove("visible");
+    // Clean up vertical classes
+    $("story-scroll").classList.remove("vertical");
+    $("story-content").classList.remove("vertical");
+    history.pushState(null, "", window.location.pathname);
+  }
+
+  // ===== Event Listeners =====
+  $("back-btn").addEventListener("click", closeStory);
+
+  document.addEventListener("keydown", function(e){
+    if(e.key === "Escape" && currentStory) closeStory();
+  });
+
+  // Swipe from left edge to go back
+  var touchStartX=0, touchStartY=0, touchStartTime=0;
+  document.addEventListener("touchstart", function(e){
+    if(!currentStory) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, {passive: true});
+
+  document.addEventListener("touchend", function(e){
+    if(!currentStory) return;
+    var touch = e.changedTouches[0];
+    var dx = touch.clientX - touchStartX;
+    var dy = Math.abs(touch.clientY - touchStartY);
+    var dt = Date.now() - touchStartTime;
+    // Only trigger back if NOT in vertical scroll mode (would conflict)
+    if(currentWritingMode !== "vertical" && touchStartX < 30 && dx > 80 && Math.abs(dx) > dy && dt < 500){
+      closeStory();
+    }
+  }, {passive: true});
+
+  // Browser back/forward
+  window.addEventListener("popstate", function(){
+    var hash = window.location.hash.slice(1);
+    if(hash && stories.length){
+      var idx = stories.findIndex(function(s){return s.id === hash});
+      if(idx >= 0){openStory(idx); return}
+    }
+    if(currentStory) closeStory();
+  });
+
+  // Writing mode toggle click
+  $("writing-mode-toggle").addEventListener("click", function(){
+    if(!currentStory || currentStory.lang !== "ja") return;
+    var newMode = currentWritingMode === "vertical" ? "horizontal" : "vertical";
+    storeWritingMode(currentStory.id, newMode);
+    applyWritingMode(newMode);
+  });
+
+  // Font size button clicks
+  document.querySelectorAll(".font-size-btn").forEach(function(btn, i){
+    btn.addEventListener("click", function(){ applyFontSize(i); });
+  });
+
+  // ===== Init =====
+  applyFontSize(fsIndex);
+
+  fetch("stories.json").then(function(r){return r.json()}).then(function(data){
+    stories = data;
+    buildLanding(stories);
+    var hash = window.location.hash.slice(1);
+    if(hash){
+      var idx = stories.findIndex(function(s){return s.id === hash});
+      if(idx >= 0) openStory(idx);
+    }
+  }).catch(function(){
+    $("story-list").innerHTML =
+      '<li style="color:var(--color-text-secondary);padding:2rem 0">' +
+      'Could not load stories.json. Serve this directory over HTTP.<br>' +
+      '<code style="font-size:var(--size-sm)">python -m http.server 8000</code></li>';
+  });
+})();
+</script>
+</body>
+</html>
